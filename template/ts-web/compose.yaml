@@ -1,0 +1,22 @@
+# 로컬 개발·테스트용 Postgres. `docker compose up -d`로 띄운다.
+# 127.0.0.1에만 열고, 포트는 .env의 DB_PORT로 바꾼다(여러 프로젝트를 같이 띄울 때).
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: app
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      # Postgres 18 이미지는 데이터를 /var/lib/postgresql 아래 버전 폴더에 둔다.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d app"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  db-data:
