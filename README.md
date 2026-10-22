@@ -8,7 +8,7 @@
 
 | 도구 | 깔기 | 쓰는 곳 |
 |---|---|---|
-| git, python3, gh | macOS 기본 + `brew install gh` 뒤 `gh auth login` | setup.sh, 저장소 만들기 |
+| git, python3, gh | macOS 기본 + `brew install gh` 뒤 `gh auth login`. SSH 키가 다른 GitHub 계정에 묶여 있으면 `gh config set git_protocol https` | setup.sh, 저장소 만들기 |
 | mise | `brew install mise` 뒤 `~/.zshrc`에 `eval "$(mise activate zsh)"` | TS 웹: Node·pnpm 버전 고정 |
 | Docker + compose | Colima를 쓰면 `brew install docker-compose` 뒤 `~/.docker/config.json`의 `cliPluginsExtraDirs`에 `/opt/homebrew/lib/docker/cli-plugins` | TS 웹: 로컬 Postgres |
 | graphify(선택) | `uv tool install "graphifyy[sql]"` | 코드 지도 |
