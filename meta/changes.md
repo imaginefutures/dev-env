@@ -6,6 +6,7 @@
 - 2026-10-25 / 체계 처음 도입 / 해당 없음 / `meta/` 신설(뿌리 P1~P5, 진단·통과 조건·도입 심사·가지치기·다시 짓기, 가설 H1), `setup.sh` 정리 목록에 `meta/`, README에 안내 한 단락 / 기준선을 아래에 기록
 - 2026-10-25 / shared-checkout 4건 / 진단 1(5절이 글이라 안 지켜짐)+2(차례 번호 규칙이 동시 작업에서 틀림) / CONTRIBUTING 5절의 손 점검 셋(`git status` 비교, `git diff --cached` 확인, `-F` 커밋 메시지)을 빼고 장치로: 작업 폴더 훅(`worktree-guard.sh`, SessionStart·PreToolUse), "차례 번호를 쓰지 않는다" 한 줄; `setup.sh`가 훅을 사건마다 합치게 / 5절 규칙 6 → 5(−1)
 - 2026-10-25 / shared-checkout(이어서) / 진단 3(5절 "차례 번호를 쓰지 않는다"와 9절 "번호는 차례대로"가 부딪힘) / 9절 결정 기록 이름을 시각+슬러그로, 대체 표시를 이름으로; 외부 스킬(domain-modeling, 해시 고정)은 고치지 않고 9절이 이긴다고 적음 / 규칙 수 변화 없음
+- 2026-10-25 / unread-orchestration 2건 / 진단 1(docs/agents.md 원칙이 글이라 띄우는 순간 안 보임) / 서브에이전트를 띄울 때 점검을 보이고 불완전한 지시를 막는 훅(`agent-launch-guard.sh`, PreToolUse Agent), agents.md 점검 제목에 훅 안내 한 줄 / 규칙 글 수 변화 없음
 
 ## 숫자 (기준선: 2026-10-25)
 

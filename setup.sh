@@ -54,7 +54,8 @@ import json, os, shutil, sys
 target, self_mode, layers = sys.argv[1], sys.argv[2] == "1", sys.argv[3:]
 TEMPLATE_OWNED = {"CONTRIBUTING.md", "docs/code-rules.md", "docs/agents.md", "docs/skills.md",
                   "docs/web.md", "docs/stack.md", ".editorconfig",
-                  ".claude/hooks/worktree-guard.sh"}
+                  ".claude/hooks/worktree-guard.sh",
+                  ".claude/hooks/agent-launch-guard.sh"}
 MERGED = {".gitignore", ".claude/settings.json", "skills-lock.json"}
 SPECIAL = {"CLAUDE.preset.md", "CLAUDE.antislop.md"}
 report = {"새로 만듦": [], "틀로 바꿈": [], "합침": [], "그대로 둠(프로젝트 파일)": []}
