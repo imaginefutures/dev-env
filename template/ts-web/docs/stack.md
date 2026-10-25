@@ -38,8 +38,8 @@ TS 웹 서비스 묶음이 쓰는 도구다. 고른 기준은 하나다: **기�
 속도 기준:
 
 - 커밋 전 훅은 **바뀐 파일만** 본다(gitleaks, 포맷, lint). 1~2초 안.
-- push 전 훅은 타입 검사와 빠른 단위 테스트만. 30초 안.
-- DB 테스트와 e2e는 CI에서 돈다. 로컬은 필요할 때만. package.json의 `e2e`는 `scripts/heavy/slot.sh e2e`로(자리 1), `test`는 `scripts/heavy/vitest.sh`로 감싼다: 전체 실행만 자리(2)를 받고 파일을 고른 실행은 기다리지 않으며, 전체 실행이 실패하면 실패한 파일만 한 번 다시 돌려 부하로 난 실패를 가른다(CI에서는 둘 다 없이 그냥 돈다).
+- push 전 훅은 타입 검사·모듈 경계와 빠른 시험(`pnpm test:fast`)만. 30초 안. 시험은 vitest `projects`로 `unit`(DB 없음)·`db` 두 묶음으로 나누고, `test:fast`는 `unit`만 돌린다.
+- DB 테스트와 e2e는 CI에서 돈다. 로컬에서 언제 돌리나는 CONTRIBUTING 3절. package.json의 `e2e`는 `scripts/heavy/slot.sh e2e`로(자리 1), `test`는 `scripts/heavy/vitest.sh`로 감싼다: 전체 실행만 자리(2)를 받고 파일을 고른 실행은 기다리지 않으며, 전체 실행이 실패하면 실패한 파일만 한 번 다시 돌려 부하로 난 실패를 가른다(CI에서는 둘 다 없이 그냥 돈다).
 - Claude Code 훅은 고친 파일 하나만 lint·포맷한다. 전체 테스트를 매번 거는 훅은 두지 않는다.
 
 ## 3. 넣지 않는 것

@@ -11,6 +11,7 @@
 - 2026-10-25 / parallel-helpers-collide 4건 / 진단 1(agents.md 원칙 4·8과 일 목록의 겹침 칸이 글이라 안 지켜짐; scratchpad는 shared-checkout과 같은 구조의 두 번째 사례) / 장치: `work-guard.py`(띄울 때 `가지:`·`고칠 곳:` 겹침 검사와 맡김 기록, 보고 전 바탕 검사 SubagentHandback·SubagentStop, scratchpad 칸 검사), `scripts/heavy/slot.sh`(e2e·시험 자리), `tests/hooks.sh`; `agent-launch-guard.sh`는 본체로 넘기는 한 줄; agents.md 원칙 4·8·10과 점검 2를 장치 안내로 바꿔 씀 / 원칙 수 10 그대로, 규칙 글 수 변화 없음
 - 2026-10-25 / stale-root-checkout 1건 / 진단 1(장치가 있었는데 훅을 읽는 저장소 폴더가 옛 가지라 안 돎) / `scripts/git/ship.sh`(빨리감기 확인·올리기·저장소 폴더 맞추기)·`sync-root.sh`, SessionStart에서 저장소 폴더가 main이 아니거나 뒤면 알림(worktree-guard), 올리기 스크립트를 묻고 돌게 permissions.ask, CONTRIBUTING 5절 push 줄을 스크립트 안내로 바꿔 씀, tests/hooks.sh 9개 / 규칙 글 수 변화 없음
 - 2026-10-26 / parallel-helpers-collide(이어서, 사용자 결정: 이전 프로젝트 방식) / 진단 2(시험 자리가 고른 작은 실행까지 기다리게 해 너무 넓었다) / `scripts/heavy/vitest.sh`(TS 웹): 전체 실행만 자리, 고른 실행은 바로, 전체 실패는 실패한 파일만 파일 병렬 없이 한 번 다시(통과한 이름을 보이고, 남은 실패가 있을 때만 실패, CI에서는 안 함), tests/hooks.sh 7개 / 규칙 글 수 변화 없음
+- 2026-10-26 / full-check-per-helper 1건 + recipe-orchestration-retro(옛 프로젝트 회고 옮김, 사용자 결정 process-port-5) / 진단 1(원칙 2·8이 있었는데 커밋 시점 글이 전체 검사를 요구해 밀림)+3(프로젝트 "커밋 전 전체 검사"와 stack.md "로컬은 필요할 때만"이 부딪힘, P1로 stack.md 쪽) / CONTRIBUTING 3절 "테스트를 돌리지 않았으면" 줄을 "커밋 전에는 닿는 시험만, 전체는 main에 올리기 전 한 번"으로 고쳐 씀, agents.md 원칙 8에 "끝난 조각은 바로 main, 도우미 바탕은 origin/main 하나, 전체 검사는 올리는 쪽"을 고쳐 씀, 회고 기록 칸이 `meta/cases/`를 가리킴, stack.md 속도 기준 두 줄 고쳐 씀(push 전 `test:fast`, vitest `unit`·`db`) / 규칙 글 수 변화 없음
 
 ## 숫자 (기준선: 2026-10-25)
 
