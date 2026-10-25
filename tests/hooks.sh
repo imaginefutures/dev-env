@@ -233,4 +233,57 @@ start=$(date +%s)
 [ $? = 7 ] && echo "ok   명령의 종료 코드를 그대로 돌려줌" || { echo "FAIL 종료 코드"; fail=1; }
 [ "$(CI=1 "$SLOT" e2e echo ci)" = ci ] && echo "ok   CI에서는 그냥 돈다" || { echo "FAIL CI"; fail=1; }
 
+echo "# vitest.sh (pnpm test: 고른 실행은 자리 없이, 전체 실패는 실패한 파일만 다시)"
+VT="$HERE/template/ts-web/scripts/heavy/vitest.sh"
+mkdir -p "$T/vt" "$T/bin"
+cp "$VT" "$SLOT" "$T/vt/"
+VT="$T/vt/vitest.sh"
+cat >"$T/bin/vitest" <<'FAKE'
+#!/usr/bin/env bash
+# 가짜 vitest: run [옵션] [파일...]. 파일을 안 주면 FAKE_FILES 전체. FAKE_FAIL은 늘 실패, FAKE_FLAKY는 전체 실행에서만 실패.
+shift
+out=""
+files=""
+for a in "$@"; do
+  case "$a" in --outputFile.json=*) out="${a#*=}" ;; -*) ;; *) files="$files $a" ;; esac
+done
+full=0
+[ -z "$files" ] && files="$FAKE_FILES" && full=1
+echo "$full$files" >>"$FAKE_LOG"
+[ -n "${FAKE_CRASH:-}" ] && exit 1
+bad=0
+rows=""
+for f in $files; do
+  st=passed
+  case " ${FAKE_FAIL:-} " in *" $f "*) st=failed ;; esac
+  [ "$full" = 1 ] && case " ${FAKE_FLAKY:-} " in *" $f "*) st=failed ;; esac
+  [ "$st" = failed ] && bad=1
+  rows="$rows${rows:+,}{\"name\":\"$f\",\"status\":\"$st\"}"
+done
+[ -n "$out" ] && echo "{\"testResults\":[$rows]}" >"$out"
+exit "$bad"
+FAKE
+chmod +x "$T/bin/vitest"
+export VITEST_BIN="$T/bin/vitest" FAKE_FILES="a.test.ts b.test.ts c.test.ts" FAKE_LOG="$T/vt/log"
+vt() { : >"$FAKE_LOG"; out="$("$VT" "$@" 2>&1)"; code=$?; }
+vt
+check "전체 실행이 통과하면 0" "$([ $code = 0 ] && [ "$(wc -l <"$FAKE_LOG" | tr -d ' ')" = 1 ] && echo 0 || echo 1)"
+FAKE_FLAKY="b.test.ts" vt
+check "전체에서만 실패한 파일은 다시 돌려 통과하면 0, 이름을 보임" "$([ $code = 0 ] && printf '%s' "$out" | grep -q "다시 돌려 통과: 1개(부하로 인한 실패로 봄): b.test.ts" && grep -qx "0 b.test.ts" "$FAKE_LOG" && echo 0 || echo 1)"
+FAKE_FLAKY="b.test.ts" FAKE_FAIL="c.test.ts" vt
+check "다시 돌려도 실패하는 파일이 있으면 실패" "$([ $code != 0 ] && printf '%s' "$out" | grep -q "다시 돌려 통과: 1개.*여전히 실패: 1개: c.test.ts" && echo 0 || echo 1)"
+FAKE_CRASH=1 vt
+check "실패한 파일을 못 뽑으면(설정·DB 실패) 다시 돌리지 않고 실패" "$([ $code != 0 ] && [ "$(wc -l <"$FAKE_LOG" | tr -d ' ')" = 1 ] && echo 0 || echo 1)"
+CI=1 FAKE_FLAKY="b.test.ts" vt
+check "CI에서는 다시 돌리지 않음(들쭉날쭉한 실패를 가리지 않게)" "$([ $code != 0 ] && [ "$(wc -l <"$FAKE_LOG" | tr -d ' ')" = 1 ] && echo 0 || echo 1)"
+HEAVY_SLOTS_TEST=1 "$SLOT" test sleep 3 &
+sleep 0.5
+start=$(date +%s)
+vt web/src/x.test.ts
+check "파일을 고른 실행은 자리를 기다리지 않음" "$([ $code = 0 ] && [ $(($(date +%s) - start)) -le 1 ] && ! printf '%s' "$out" | grep -q "자리 기다림" && echo 0 || echo 1)"
+start=$(date +%s)
+HEAVY_SLOTS_TEST=1 vt
+check "전체 실행은 자리를 기다림" "$([ $code = 0 ] && printf '%s' "$out" | grep -q "자리 기다림" && echo 0 || echo 1)"
+wait
+
 exit "$fail"

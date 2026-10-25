@@ -50,7 +50,7 @@ cd <새이름>
 
 | 주인 | 파일 | setup.sh가 하는 일 |
 |---|---|---|
-| 틀 | `CONTRIBUTING.md`, `docs/code-rules.md`·`agents.md`·`skills.md`·`web.md`·`stack.md`, `.editorconfig`, 틀 스킬, `.claude/hooks/`의 틀 훅, `scripts/heavy/slot.sh`, `scripts/git/ship.sh`·`sync-root.sh` | 항상 덮어쓴다 |
+| 틀 | `CONTRIBUTING.md`, `docs/code-rules.md`·`agents.md`·`skills.md`·`web.md`·`stack.md`, `.editorconfig`, 틀 스킬, `.claude/hooks/`의 틀 훅, `scripts/heavy/slot.sh`·`vitest.sh`(TS 웹), `scripts/git/ship.sh`·`sync-root.sh` | 항상 덮어쓴다 |
 | 프로젝트 | `CLAUDE.md`, `README.md`, `docs/project.md`, `mise.toml`, `compose.yaml`, `.env.example` | 없을 때만 만든다 |
 | 합침 | `.gitignore`, `.claude/settings.json`, `skills-lock.json`, `CLAUDE.md`의 묶음 문서 줄과 antislop 블록 | 빠진 것만 더한다 |
 

@@ -4,7 +4,7 @@
 #
 #   scripts/heavy/slot.sh <종류> <명령...>      예: scripts/heavy/slot.sh e2e playwright test
 #
-# 자리 수: HEAVY_SLOTS_<종류 대문자>(기본 e2e 1, test 2, 그 밖 1). 잠금 폴더: ~/.cache/dev-env/heavy/<종류>/.
+# 자리 수: HEAVY_SLOTS_<종류 대문자>(기본 e2e 1, test 2, 그 밖 1). 파일을 고른 시험은 자리를 받지 않는다(TS 웹은 scripts/heavy/vitest.sh가 가른다). 잠금 폴더: ~/.cache/dev-env/heavy/<종류>/.
 # 자리를 쥔 쪽이 죽으면(kill -9 포함) 다음에 기다리는 쪽이 치우고 받는다. CI에서는 그냥 돈다(러너 하나에 일 하나).
 set -u
 
