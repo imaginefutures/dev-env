@@ -8,7 +8,13 @@
       "Read(./.env.*.local)"
     ],
     "ask": [
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(scripts/git/ship.sh)",
+      "Bash(scripts/git/ship.sh *)",
+      "Bash(./scripts/git/ship.sh)",
+      "Bash(./scripts/git/ship.sh *)",
+      "Bash(pnpm ship)",
+      "Bash(pnpm ship *)"
     ]
   },
   "hooks": {

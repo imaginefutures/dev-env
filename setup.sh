@@ -8,7 +8,7 @@
 #
 # 파일 주인:
 #   틀    항상 덮어쓴다      CONTRIBUTING.md, docs/{code-rules,agents,skills,web,stack}.md, .editorconfig, 틀 스킬,
-#                            .claude/hooks/의 틀 훅, scripts/heavy/slot.sh
+#                            .claude/hooks/의 틀 훅, scripts/heavy/slot.sh, scripts/git/{ship,sync-root}.sh
 #   프로젝트  없을 때만 만든다  CLAUDE.md, README.md, docs/project.md, mise.toml, compose.yaml, .env.example
 #   합침   빠진 것만 더한다    .gitignore, .claude/settings.json, skills-lock.json, CLAUDE.md의 묶음 줄
 set -euo pipefail
@@ -58,7 +58,9 @@ TEMPLATE_OWNED = {"CONTRIBUTING.md", "docs/code-rules.md", "docs/agents.md", "do
                   ".claude/hooks/worktree-guard.sh",
                   ".claude/hooks/agent-launch-guard.sh",
                   ".claude/hooks/work-guard.py",
-                  "scripts/heavy/slot.sh"}
+                  "scripts/heavy/slot.sh",
+                  "scripts/git/ship.sh",
+                  "scripts/git/sync-root.sh"}
 MERGED = {".gitignore", ".claude/settings.json", "skills-lock.json"}
 SPECIAL = {"CLAUDE.preset.md", "CLAUDE.antislop.md"}
 report = {"새로 만듦": [], "틀로 바꿈": [], "합침": [], "그대로 둠(프로젝트 파일)": []}

@@ -3,6 +3,7 @@
 # 저장소 폴더(처음 clone한 곳)는 여러 세션이 같이 보는 자리라, 거기서 git으로 쓰는 일을 막는다.
 # 다른 작업 폴더에서는 git이 "가지 하나 = 작업 폴더 하나"를 지켜 주므로 이 훅이 더 할 일이 없다.
 #   session: 세션이 시작될 때(SessionStart) 저장소 폴더면 옮기라고 알린다(막지는 않는다: 읽기만 하는 세션도 있다).
+#            저장소 폴더가 main이 아니거나 origin/main보다 뒤면 맞추라고 알린다: Claude Code는 훅·설정을 거기서 읽는다.
 #   bash:    Bash를 부르기 전에(PreToolUse) 저장소 폴더에서 git으로 쓰는 명령이면 막는다(exit 2).
 set -u
 
@@ -27,9 +28,25 @@ for key in sys.argv[1].split("."):
 print(value if isinstance(value, str) else "")' "$1" 2>/dev/null
 }
 
+# 저장소 폴더가 origin/main에 있나. 이 컴퓨터의 origin/main으로만 본다(세션 시작마다 받지 않는다).
+check_root() {
+  local common root main cur behind
+  main="${SYNC_MAIN_BRANCH:-main}"
+  common="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 0
+  [ "$(basename "$common")" = ".git" ] || return 0
+  root="$(dirname "$common")"
+  git -C "$root" rev-parse -q --verify "refs/remotes/origin/$main" >/dev/null || return 0
+  cur="$(git -C "$root" symbolic-ref -q --short HEAD || echo "(가지 없음)")"
+  behind="$(git -C "$root" rev-list --count "HEAD..refs/remotes/origin/$main" 2>/dev/null || echo 0)"
+  if [ "$cur" != "$main" ] || [ "$behind" -gt 0 ]; then
+    echo "저장소 폴더($root)가 ${cur}에 있고 origin/${main}보다 ${behind}커밋 뒤다. Claude Code는 훅·설정을 거기서 읽으므로 새 훅이 돌지 않는다. scripts/git/sync-root.sh로 맞춘다(커밋 안 한 변경이 있으면 멈추고 알린다)."
+  fi
+}
+
 case "$mode" in
   session)
     cwd="$(field cwd)"
+    check_root "${cwd:-.}"
     if is_main_checkout "${cwd:-.}"; then
       echo "이 세션은 저장소 폴더에서 시작했다. 파일을 고치거나 커밋하기 전에 자기 작업 폴더로 옮긴다(EnterWorktree 도구, 또는 git worktree add .claude/worktrees/<이름> -b <가지>). 저장소 폴더에서 git으로 쓰는 명령은 훅이 막는다."
     fi
@@ -52,7 +69,7 @@ case "$mode" in
       {
         echo "막음: 저장소 폴더에서는 git으로 쓰지 않는다(여러 세션이 같이 보는 자리다)."
         echo "자기 작업 폴더로 옮긴다: EnterWorktree 도구, 또는 git worktree add .claude/worktrees/<이름> -b <가지>."
-        echo "합치기·올리기도 작업 폴더에서 한다(올리기는 git push origin <가지>:<대상>)."
+        echo "합치기·올리기도 작업 폴더에서 한다(main에 올리기는 scripts/git/ship.sh, 저장소 폴더를 main에 맞추기는 scripts/git/sync-root.sh)."
       } >&2
       exit 2
     fi

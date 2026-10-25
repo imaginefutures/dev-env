@@ -50,7 +50,7 @@ cd <새이름>
 
 | 주인 | 파일 | setup.sh가 하는 일 |
 |---|---|---|
-| 틀 | `CONTRIBUTING.md`, `docs/code-rules.md`·`agents.md`·`skills.md`·`web.md`·`stack.md`, `.editorconfig`, 틀 스킬, `.claude/hooks/`의 틀 훅, `scripts/heavy/slot.sh` | 항상 덮어쓴다 |
+| 틀 | `CONTRIBUTING.md`, `docs/code-rules.md`·`agents.md`·`skills.md`·`web.md`·`stack.md`, `.editorconfig`, 틀 스킬, `.claude/hooks/`의 틀 훅, `scripts/heavy/slot.sh`, `scripts/git/ship.sh`·`sync-root.sh` | 항상 덮어쓴다 |
 | 프로젝트 | `CLAUDE.md`, `README.md`, `docs/project.md`, `mise.toml`, `compose.yaml`, `.env.example` | 없을 때만 만든다 |
 | 합침 | `.gitignore`, `.claude/settings.json`, `skills-lock.json`, `CLAUDE.md`의 묶음 문서 줄과 antislop 블록 | 빠진 것만 더한다 |
 
@@ -62,7 +62,7 @@ lint·포맷·타입·git 훅·CI 설정 파일은 넣지 않았다. 실제 코�
 
 ## dev-env를 고칠 때
 
-규칙을 더하거나 스킬을 들이기 전에 [meta/GOVERNANCE.md](meta/GOVERNANCE.md)를 먼저 읽는다. 뿌리는 [meta/ROOT.md](meta/ROOT.md), 도입 판정 기록은 `meta/intake/`다. `meta/`는 새 프로젝트에 깔리지 않는다. 틀 훅(`template/base/.claude/hooks/`)이나 `scripts/heavy/slot.sh`를 고치면 `tests/hooks.sh`를 돌린다.
+규칙을 더하거나 스킬을 들이기 전에 [meta/GOVERNANCE.md](meta/GOVERNANCE.md)를 먼저 읽는다. 뿌리는 [meta/ROOT.md](meta/ROOT.md), 도입 판정 기록은 `meta/intake/`다. `meta/`는 새 프로젝트에 깔리지 않는다. 틀 훅(`template/base/.claude/hooks/`)이나 `template/base/scripts/`를 고치면 `tests/hooks.sh`를 돌린다.
 
 ## 출처
 

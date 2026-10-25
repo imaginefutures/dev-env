@@ -157,6 +157,47 @@ expect "Bash로 남의 칸에 tee 하면 막음" deny "다른 도우미" scratch
 expect "Bash로 자기 칸에 쓰면 통과" allow "" scratch "$(b a1 "git log >$S/drafts/log.txt 2>&1")"
 expect "Bash로 읽기만 하면 통과" allow "" scratch "$(b a2 "git commit -F $S/drafts/msg1.txt; cat $S/msg1.txt")"
 
+echo "# 저장소 폴더 맞추기 (worktree-guard session, scripts/git/ship.sh·sync-root.sh)"
+WG="$HERE/template/base/.claude/hooks/worktree-guard.sh"
+GITS="$HERE/template/base/scripts/git"
+git init -q --bare -b main "$T/remote.git"
+git clone -q "$T/remote.git" "$T/root" 2>/dev/null
+ROOT="$T/root"
+(cd "$ROOT" && git config user.email t@t && git config user.name t && echo a >a.txt && git add a.txt && git commit -qm init && git push -q origin main && git switch -q -c old-merge)
+git -C "$ROOT" worktree add -q "$ROOT/wt" -b work/ship origin/main
+SH="$ROOT/wt"
+(cd "$SH" && git config user.email t@t && git config user.name t && echo b >b.txt && git add b.txt && git commit -qm ship-b)
+session() { CWD="$1" j '{"hook_event_name":"SessionStart","cwd":"@CWD@"}' | bash "$WG" session; }
+check() { # check <이름> <조건 결과 0/1>
+  if [ "$2" = 0 ]; then echo "ok   $1"; else echo "FAIL $1"; fail=1; fi
+}
+out="$(session "$SH")"
+case "$out" in *"저장소 폴더"*"old-merge"*sync-root*) check "저장소 폴더가 main이 아니면 세션 시작 때 알림" 0 ;; *) check "저장소 폴더가 main이 아니면 세션 시작 때 알림: $out" 1 ;; esac
+CWD="$ROOT" CMD="git -C $ROOT merge --ff-only origin/main" j '{"cwd":"@CWD@","tool_input":{"command":"@CMD@"}}' | bash "$WG" bash 2>/dev/null
+check "저장소 폴더에서 손으로 git merge는 여전히 막음" "$([ $? = 2 ] && echo 0 || echo 1)"
+CWD="$SH" CMD="$GITS/sync-root.sh" j '{"cwd":"@CWD@","tool_input":{"command":"@CMD@"}}' | bash "$WG" bash 2>/dev/null
+check "sync-root.sh 부르기는 막지 않음" "$([ $? = 0 ] && echo 0 || echo 1)"
+out="$(cd "$SH" && "$GITS/ship.sh" 2>&1)"
+check "ship: 올리고 저장소 폴더를 main으로 옮겨 맞춤" "$([ "$(git -C "$T/remote.git" rev-parse main)" = "$(git -C "$SH" rev-parse HEAD)" ] && [ "$(git -C "$ROOT" symbolic-ref --short HEAD)" = main ] && [ "$(git -C "$ROOT" rev-parse HEAD)" = "$(git -C "$SH" rev-parse HEAD)" ] && echo 0 || echo 1)"
+check "맞춘 뒤 세션 시작 알림 없음" "$([ -z "$(session "$SH")" ] && echo 0 || echo 1)"
+# 다른 곳에서 main이 앞서 나가면 빨리감기가 안 되니 올리지 않는다.
+git clone -q "$T/remote.git" "$T/other" 2>/dev/null
+(cd "$T/other" && git config user.email t@t && git config user.name t && echo c >c.txt && git add c.txt && git commit -qm other && git push -q origin main)
+(cd "$SH" && echo d >d.txt && git add d.txt && git commit -qm ship-d)
+before="$(git -C "$T/remote.git" rev-parse main)"
+out="$(cd "$SH" && "$GITS/ship.sh" 2>&1)"; code=$?
+check "ship: origin/main이 앞서 있으면 올리지 않음" "$([ $code != 0 ] && [ "$(git -C "$T/remote.git" rev-parse main)" = "$before" ] && echo 0 || echo 1)"
+out="$(session "$SH")"
+case "$out" in *"1커밋 뒤다"*) check "저장소 폴더가 origin/main보다 뒤면 알림" 0 ;; *) check "뒤짐 알림: $out" 1 ;; esac
+# 저장소 폴더에 커밋 안 한 변경이 있으면 올리기는 하되 맞추지 않고 알린다.
+(cd "$SH" && git merge -q --no-edit origin/main)
+echo dirty >>"$ROOT/a.txt"
+out="$(cd "$SH" && "$GITS/ship.sh" 2>&1)"; code=$?
+check "ship: 저장소 폴더가 더러우면 올린 뒤 맞추기는 멈추고 알림" "$([ $code = 1 ] && [ "$(git -C "$T/remote.git" rev-parse main)" = "$(git -C "$SH" rev-parse HEAD)" ] && [ "$(git -C "$ROOT" rev-parse HEAD)" != "$(git -C "$SH" rev-parse HEAD)" ] && printf '%s' "$out" | grep -q "커밋 안 한 변경" && echo 0 || echo 1)"
+git -C "$ROOT" checkout -q -- a.txt
+out="$(cd "$SH" && "$GITS/sync-root.sh" 2>&1)"
+check "정리한 뒤 sync-root.sh로 맞춤" "$([ "$(git -C "$ROOT" rev-parse HEAD)" = "$(git -C "$SH" rev-parse HEAD)" ] && echo 0 || echo 1)"
+
 echo "# slot.sh"
 unset CI
 : >"$T/not-a-dir"
