@@ -269,7 +269,7 @@ vt() { : >"$FAKE_LOG"; out="$("$VT" "$@" 2>&1)"; code=$?; }
 vt
 check "전체 실행이 통과하면 0" "$([ $code = 0 ] && [ "$(wc -l <"$FAKE_LOG" | tr -d ' ')" = 1 ] && echo 0 || echo 1)"
 FAKE_FLAKY="b.test.ts" vt
-check "전체에서만 실패한 파일은 다시 돌려 통과하면 0, 이름을 보임" "$([ $code = 0 ] && printf '%s' "$out" | grep -q "다시 돌려 통과: 1개(부하로 인한 실패로 봄): b.test.ts" && grep -qx "0 b.test.ts" "$FAKE_LOG" && echo 0 || echo 1)"
+check "전체에서만 실패한 파일은 다시 돌려 통과하면 0, 이름을 보임" "$([ $code = 0 ] && printf '%s' "$out" | grep -q "다시 돌려 통과: 1개(부하로 인한 실패로 봄): b.test.ts /" && grep -qx "0 b.test.ts" "$FAKE_LOG" && echo 0 || echo 1)"
 FAKE_FLAKY="b.test.ts" FAKE_FAIL="c.test.ts" vt
 check "다시 돌려도 실패하는 파일이 있으면 실패" "$([ $code != 0 ] && printf '%s' "$out" | grep -q "다시 돌려 통과: 1개.*여전히 실패: 1개: c.test.ts" && echo 0 || echo 1)"
 FAKE_CRASH=1 vt

@@ -49,5 +49,6 @@ fi
 passed="$(printf '%s\n' "$first" | grep -vxF -f <(printf '%s\n' "$still") || true)"
 m=0
 [ -n "$still" ] && m="$(printf '%s\n' "$still" | wc -l | tr -d ' ')"
-echo "[test] 다시 돌려 통과: $((n - m))개(부하로 인한 실패로 봄)${passed:+: $(printf '%s ' $passed)}/ 여전히 실패: ${m}개${still:+: $(printf '%s ' $still)}" >&2
+names() { for f in $1; do printf ' %s' "${f#"$PWD"/}"; done; }
+echo "[test] 다시 돌려 통과: $((n - m))개(부하로 인한 실패로 봄)${passed:+:$(names "$passed")} / 여전히 실패: ${m}개${still:+:$(names "$still")}" >&2
 [ "$m" = 0 ]
