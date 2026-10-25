@@ -160,7 +160,8 @@ for k, v in report.items():
         print(f"[{k}] " + ", ".join(dict.fromkeys(v)))
 PY
 
-if [[ ! -d "$TARGET/.git" ]]; then
+# 작업 폴더(git worktree)는 .git이 폴더가 아니라 파일이다. 폴더 유무가 아니라 git에 물어 이미 저장소인지 본다.
+if ! git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
   git -C "$TARGET" init -q -b main && echo "[git] 새 저장소를 만들었다(main)"
 fi
 
