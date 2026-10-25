@@ -22,7 +22,11 @@ if [ -z "$slots" ]; then
   case "$kind" in test) slots=2 ;; *) slots=1 ;; esac
 fi
 dir="${XDG_CACHE_HOME:-$HOME/.cache}/dev-env/heavy/$kind"
-mkdir -p "$dir"
+# 잠금 폴더를 못 만들면(쓰기 막힌 홈, 모래상자) 자리 없이 그냥 돈다. 멈춰 기다리는 것보다 낫다.
+if ! mkdir -p "$dir" 2>/dev/null || [ ! -w "$dir" ]; then
+  echo "[heavy] 잠금 폴더($dir)를 쓸 수 없어 자리 없이 돈다." >&2
+  exec "$@"
+fi
 me="$dir/holder-$$"
 mutex="$dir/.mutex"
 
@@ -30,12 +34,20 @@ mutex="$dir/.mutex"
 alive() { ps -p "$1" -o command= 2>/dev/null | grep -q 'slot\.sh'; }
 
 # 짧은 잠금 안에서 죽은 자리를 치우고 빈 자리가 있으면 받는다. 받으면 0.
+# 잠금을 오래 못 받으면(1분 넘은 남은 잠금은 치우므로 정상이면 없다) 한 줄 알리고 자리 없이 돈다.
+mutex_tries=0
 take() {
   until mkdir "$mutex" 2>/dev/null; do
     # 잠금을 쥔 채 죽은 쪽이 남긴 잠금(1분 넘음)은 치운다. 정상이면 잠금은 몇 ms만 쥔다.
     [ -n "$(find "$mutex" -maxdepth 0 -mmin +1 2>/dev/null)" ] && rmdir "$mutex" 2>/dev/null
+    mutex_tries=$((mutex_tries + 1))
+    if [ "$mutex_tries" -ge "${HEAVY_MUTEX_TRIES:-900}" ]; then
+      echo "[heavy] $mutex 잠금을 $((mutex_tries / 10))초 넘게 못 받아 자리 없이 돈다. 남은 잠금이면 지운다: rmdir $mutex" >&2
+      exec "$@"
+    fi
     sleep 0.1
   done
+  mutex_tries=0
   running=0
   holders=""
   for h in "$dir"/holder-*; do

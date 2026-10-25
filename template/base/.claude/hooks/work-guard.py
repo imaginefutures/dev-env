@@ -41,6 +41,7 @@ WRITE_TOOLS = re.compile(r"\b(Edit|Write|NotebookEdit|MultiEdit)\b")
 FIELD = re.compile(r"^[\s>*\-•`]*(가지|고칠 곳|겹침 허락|바탕 못 합침)\s*[:：]\s*(.*?)[\s`]*$", re.M)
 UNCLAIMED_GRACE = 2 * 3600  # 맡긴 뒤 가지가 아직 안 생긴 맡김을 살아 있다고 보는 시간
 IDLE_GRACE = 24 * 3600  # 가지는 생겼는데 커밋이 하나도 없는 맡김
+STALE_WORKTREE = 24 * 3600  # 마지막 커밋도, 커밋 안 한 파일의 수정도 이보다 오래된 작업 폴더는 버려진 것으로 본다
 
 
 def emit(obj):
@@ -85,20 +86,24 @@ def fields_of(text):
     return found
 
 
-def split_paths(value, top):
-    """`고칠 곳:` 값을 경로 목록으로. "없음"이면 빈 목록."""
+def split_paths(value, roots):
+    """`고칠 곳:` 값을 저장소 기준 경로 목록으로. "없음"이면 빈 목록.
+    괄호 안 설명은 먼저 뗀다(설명 속 쉼표로 잘못 나누지 않게). 어느 작업 폴더 안의 절대 경로든 저장소 기준으로 바꾼다."""
     if value is None:
         return None
     if value.startswith("없음"):
         return []
+    value = re.sub(r"\s*[(（][^)）]*[)）]", "", value)
+    bases = sorted({r.rstrip("/") for root in roots if root for r in (root, os.path.realpath(root))}, key=len, reverse=True)
     paths = []
     for raw in re.split(r"[,、]", value):
         p = raw.strip().strip("`'\"").strip()
-        p = re.sub(r"\s*\(.*\)$", "", p)  # "web/x.ts(상품 블록)" 같은 설명을 뗀다
         if not p:
             continue
-        if top and p.startswith(top.rstrip("/") + "/"):
-            p = p[len(top.rstrip("/")) + 1 :]
+        for base in bases:
+            if p.startswith(base + "/"):
+                p = p[len(base) + 1 :]
+                break
         if p.startswith("./"):
             p = p[2:]
         paths.append(p)
@@ -173,15 +178,36 @@ def common_dir(cwd):
     return os.path.normpath(os.path.join(cwd, d)) if d else None
 
 
+def unique_commit_files(wt_path, other):
+    """작업 폴더 HEAD에만 있고 other에는 없는 커밋(같은 내용으로 옮겨 붙인 것은 patch-id로 뺌)과 그 파일."""
+    out = git(wt_path, "log", "--no-renames", "--no-merges", "--cherry-pick", "--right-only", "--name-only", "--format=%x00%H", f"{other}...HEAD") or ""
+    commits = {}
+    for chunk in out.split("\0")[1:]:
+        sha, _, rest = chunk.partition("\n")
+        commits[sha.strip()] = [f for f in rest.splitlines() if f]
+    return commits
+
+
 def changed_files(wt_path, known):
-    """작업 폴더의 가지에만 있는 커밋이 바꾼 파일 + 아직 커밋하지 않은 파일.
-    known(맡기는 쪽 HEAD, origin/main)에 이미 있는 커밋은 빼서, 바탕을 받아 합친 것을 그 가지의 일로 보지 않는다."""
-    files = set()
-    log = git(wt_path, "log", "--no-renames", "--name-only", "--format=", "HEAD", "--not", *[r for r in known if r]) or ""
-    files.update(f for f in log.splitlines() if f)
+    """작업 폴더의 가지에만 있는 커밋이 바꾼 파일 + 아직 커밋하지 않은 파일, 그리고 마지막으로 손댄 시각.
+    known(맡기는 쪽 HEAD, origin/main) 어느 쪽에든 이미 있는 커밋은 빼서, 바탕을 받아 합친 것을 그 가지의 일로 보지 않는다."""
+    refs = [r for r in dict.fromkeys(known) if r]
+    files, commits = set(), None
+    for ref in refs:
+        found = unique_commit_files(wt_path, ref)
+        commits = found if commits is None else {sha: fs for sha, fs in commits.items() if sha in found}
+    for fs in (commits or {}).values():
+        files.update(fs)
+    last = float((git(wt_path, "log", "-1", "--format=%ct", "HEAD") or "0").strip() or 0)
     status = git(wt_path, "status", "--porcelain", "--no-renames", "-z") or ""
-    files.update(entry[3:] for entry in status.split("\0") if len(entry) > 3)
-    return files
+    for entry in status.split("\0"):
+        if len(entry) > 3:
+            files.add(entry[3:])
+            try:
+                last = max(last, os.lstat(os.path.join(wt_path, entry[3:])).st_mtime)
+            except OSError:
+                pass
+    return files, last
 
 
 def read_claims(common):
@@ -208,7 +234,11 @@ def claim_active(cwd, claim, refs):
     base = claim.get("base_sha")
     if base and is_ancestor(cwd, tip, base):
         return age < IDLE_GRACE
-    return not any(is_ancestor(cwd, tip, r) for r in refs if r)
+    if any(is_ancestor(cwd, tip, r) for r in refs if r):
+        return False
+    # 하루 넘게 커밋이 없는 맡김은 버려진 것으로 본다(작업 폴더에 커밋 안 한 일이 있으면 그쪽 검사가 잡는다).
+    last = float((git(cwd, "log", "-1", "--format=%ct", tip) or "0").strip() or 0)
+    return not (age > STALE_WORKTREE and time.time() - last > STALE_WORKTREE)
 
 
 # --- launch ---
@@ -246,7 +276,8 @@ def launch(data):
     if read_only_agent(ti.get("subagent_type") or "", top):
         return pretool(context=reminder)
     f = fields_of(text)
-    paths = split_paths(f.get("고칠 곳"), top)
+    trees = worktrees(cwd) if top else []
+    paths = split_paths(f.get("고칠 곳"), [top] + [w["worktree"] for w in trees])
     if paths is None:
         return pretool("deny", "고치는 일을 맡기는 지시에는 `가지: <가지 이름>`과 `고칠 곳: <경로, 폴더/, 글롭>` 줄을 넣는다(훅이 다른 일과 겹치는지 견준다). 읽기·샘플·조사만이면 `고칠 곳: 없음`. (docs/agents.md 원칙 4)")
     if not paths or not top:
@@ -260,14 +291,17 @@ def launch(data):
     main_ref = default_ref(cwd)
     hits = {}  # 가지 → (어디서, 겹친 파일)
 
-    others = [w for w in worktrees(cwd) if os.path.realpath(w["worktree"]) != os.path.realpath(top) and w.get("branch") != branch and w.get("branch")]
+    others = [w for w in trees if os.path.realpath(w["worktree"]) != os.path.realpath(top) and w.get("branch") != branch and w.get("branch")]
     claims = [c for c in read_claims(common) if c["branch"] != branch] if common else []
     with ThreadPoolExecutor(max_workers=8) as pool:
         changes = list(pool.map(lambda w: changed_files(w["worktree"], [head, main_ref]), others))
         alive = list(pool.map(lambda c: claim_active(cwd, c, [main_ref, head]), claims))
-    for w, files in zip(others, changes):
+    stale = []
+    for w, (files, last) in zip(others, changes):
         hit = sorted(x for x in files if any(overlaps(x, p) for p in paths))
-        if hit:
+        if hit and time.time() - last > STALE_WORKTREE:
+            stale.append(f"{w['branch']}({len(hit)}개, {int((time.time() - last) // 3600)}시간 전)")
+        elif hit:
             hits.setdefault(w["branch"], ("작업 폴더에서 바뀜", hit))
     for c, live in zip(claims, alive):
         if not live:
@@ -282,9 +316,17 @@ def launch(data):
 
     parts = [f"{b}({where}): {', '.join(files[:6])}{' 외' if len(files) > 6 else ''}" for b, (where, files) in hits.items()]
     summary = "; ".join(parts[:8]) + (f"; 그 밖에 가지 {len(parts) - 8}개" if len(parts) > 8 else "")
+    notes = ""
+    if stale:
+        notes += f" 오래된 작업 폴더(겹침으로 안 셈, pnpm worktrees:prune 대상): {', '.join(stale)}."
+    if main_ref and head and not is_ancestor(cwd, main_ref, head):
+        notes += f" 맡기는 쪽 가지가 {short(main_ref)}보다 뒤다: 먼저 {short(main_ref)}를 받으면 이미 올라간 변경이 겹침에서 빠진다."
+    unknown = [p for p in paths if not GLOB_CHAR.search(p) and (p.startswith("/") or not os.path.exists(os.path.join(top, p)))]
+    if unknown:
+        notes += f" 디스크에 없는 고칠 곳(새 파일이면 괜찮고, 오타면 겹침을 못 본다): {', '.join(unknown)}."
     allow = f.get("겹침 허락")
     if hits and not allow:
-        return pretool("deny", f"막음: 고칠 곳이 다른 일과 겹친다 — {summary}. 그 가지가 합쳐진 뒤 띄우거나, 겹치는 일을 한 도우미에게 순서대로 맡긴다. 알고도 띄우려면 `겹침 허락: <까닭>` 줄을 넣는다. (docs/agents.md 원칙 4)")
+        return pretool("deny", f"막음: 고칠 곳이 다른 일과 겹친다 — {summary}. 그 가지가 합쳐진 뒤 띄우거나, 겹치는 일을 한 도우미에게 순서대로 맡긴다. 알고도 띄우려면 `겹침 허락: <까닭>` 줄을 넣는다.{notes} (docs/agents.md 원칙 4)")
 
     if common:
         claim_path = os.path.join(common, "work-claims", branch)
@@ -295,7 +337,7 @@ def launch(data):
             claim["overlap_allowed"] = allow
         json.dump(claim, open(claim_path, "w"), ensure_ascii=False)
     note = f" 겹침을 알고 띄움({allow}): {summary}." if hits else ""
-    return pretool(context=reminder + note)
+    return pretool(context=reminder + note + notes)
 
 
 # --- handback ---
@@ -323,6 +365,23 @@ def dispatch_prompt(transcript):
     return first
 
 
+def last_handback_message(transcript):
+    """도우미 대화 기록에서 마지막 SubagentHandback 보고 글(SubagentStop 입력에는 보고가 없다)."""
+    message = ""
+    try:
+        with open(transcript) as fh:
+            for line in fh:
+                if "SubagentHandback" not in line:
+                    continue
+                content = (json.loads(line).get("message") or {}).get("content")
+                for block in content if isinstance(content, list) else []:
+                    if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") == "SubagentHandback":
+                        message = (block.get("input") or {}).get("message") or message
+    except Exception:
+        pass
+    return message
+
+
 def agent_transcript(data, agent):
     path = data.get("agent_transcript_path")
     if path:
@@ -340,11 +399,12 @@ def handback(data):
     event = data.get("hook_event_name") or ""
     if event == "SubagentStop" and data.get("stop_hook_active"):
         return  # 한 번 알렸다. 되풀이해 막지 않는다.
+    transcript = agent_transcript(data, agent)
     report = ((data.get("tool_input") or {}).get("message")) or ""
+    if event == "SubagentStop":
+        report = last_handback_message(transcript)
     if fields_of(report).get("바탕 못 합침"):
         return
-
-    transcript = agent_transcript(data, agent)
     meta = {}
     try:
         meta = json.load(open(transcript.removesuffix(".jsonl") + ".meta.json"))

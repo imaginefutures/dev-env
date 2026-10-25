@@ -82,9 +82,26 @@ git worktree add -q "$R/wt/readme" -b work/readme merge/x
 expect "합쳐지기 전 맡김은 막음" deny "work/readme" launch "$(launch '가지: work/third\n고칠 곳: README.md')"
 git worktree remove "$R/wt/readme"
 git merge -q --no-edit work/readme && git update-ref refs/remotes/origin/main HEAD
-expect "main에 합쳐진 가지의 맡김은 무시(main 쪽 커밋도 겹침으로 안 봄)" allow "" launch "$(launch '가지: work/third\n고칠 곳: README.md')"
+expect "main에 합쳐진 가지의 맡김은 무시, 맡기는 쪽이 main보다 뒤면 알림" allow "보다 뒤다" launch "$(launch '가지: work/third\n고칠 곳: README.md')"
 [ ! -f "$CLAIMS/work/readme" ] && echo "ok   합쳐진 맡김 파일을 치움" || { echo "FAIL 합쳐진 맡김이 남았다"; fail=1; }
 rm -f "$CLAIMS/work/third"
+(cd "$LEAD" && git merge -q --no-edit origin/main)
+expect "다른 작업 폴더 절대 경로로 적어도 저장소 기준으로 견줌" deny "work/drafts" launch "$(launch "가지: work/abs\\n고칠 곳: $R/wt/drafts/web/src/screens/PageEditorParts.tsx")"
+expect "괄호 속 쉼표로 나누지 않고, 디스크에 없는 경로는 알림" allow "디스크에 없는 고칠 곳(새 파일이면 괜찮고, 오타면 겹침을 못 본다): docs/a.md, docs/b.md." launch "$(launch '가지: work/paren\n고칠 곳: docs/a.md(설명, 쉼표 포함), docs/b.md')"
+rm -f "$CLAIMS/work/paren"
+# main에 같은 내용으로 옮겨 붙인(cherry-pick) 커밋은 그 가지의 일로 안 본다.
+git worktree add -q "$R/wt/picked" -b work/picked merge/x
+(cd "$R/wt/picked" && echo picked >src/app/picked.ts && git add -A && git commit -qm picked)
+git cherry-pick work/picked >/dev/null && git update-ref refs/remotes/origin/main HEAD
+(cd "$LEAD" && git merge -q --no-edit origin/main)
+expect "main에 옮겨 붙인 커밋은 겹침으로 안 봄" allow "" launch "$(launch '가지: work/pick2\n고칠 곳: src/app/picked.ts')"
+rm -f "$CLAIMS/work/pick2"
+# 하루 넘게 손대지 않은 작업 폴더는 겹침으로 세지 않고 치울 대상으로 보인다.
+git worktree add -q "$R/wt/old" -b work/old merge/x
+OLD=$(($(date +%s) - 172800))
+(cd "$R/wt/old" && echo o >src/app/old.ts && git add -A && GIT_COMMITTER_DATE="@$OLD +0000" GIT_AUTHOR_DATE="@$OLD +0000" git commit -qm old && echo o2 >src/app/old2.ts && touch -t 202001010000 src/app/old2.ts)
+expect "오래된 작업 폴더는 막지 않고 알림" allow "오래된 작업 폴더" launch "$(launch '가지: work/new-old\n고칠 곳: src/app/old.ts, src/app/old2.ts')"
+rm -f "$CLAIMS/work/new-old"
 
 echo "# handback (PreToolUse SubagentHandback, SubagentStop)"
 (cd "$LEAD" && git merge -q --no-edit origin/main)
@@ -103,6 +120,9 @@ expect "지휘 가지가 움직였으면 보고를 막음" deny "merge/x" handba
 expect "SubagentStop도 막음" block "merge/x" handback "$(stop false)"
 expect "한 번 막힌 뒤(stop_hook_active)는 놓아 줌" allow "" handback "$(stop true)"
 expect "못 합친 까닭을 적으면 통과" allow "" handback "$(hb '바탕 못 합침: 지휘 가지가 반쯤 고친 상태')"
+# 그 보고 뒤 SubagentStop에는 보고 글이 없다. 대화 기록의 마지막 보고에서 탈출 줄을 읽어 다시 막지 않는다.
+MSG='바탕 못 합침: 지휘 가지가 반쯤 고친 상태' j '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"SubagentHandback","input":{"message":"@MSG@"}}]}}' >>"$SUB"
+expect "탈출 줄로 보고한 뒤 SubagentStop은 통과" allow "" handback "$(stop false)"
 expect "메인 세션(agent_id 없음)은 보지 않음" allow "" handback "$(j '{"hook_event_name":"SubagentStop","cwd":"@LEAD@"}')"
 (cd "$R/wt/help" && git merge -q --no-edit merge/x)
 expect "합친 뒤에는 통과" allow "" handback "$(hb "끝")"
@@ -138,8 +158,14 @@ expect "Bash로 자기 칸에 쓰면 통과" allow "" scratch "$(b a1 "git log >
 expect "Bash로 읽기만 하면 통과" allow "" scratch "$(b a2 "git commit -F $S/drafts/msg1.txt; cat $S/msg1.txt")"
 
 echo "# slot.sh"
-export XDG_CACHE_HOME="$T/cache"
 unset CI
+: >"$T/not-a-dir"
+msg="$(XDG_CACHE_HOME="$T/not-a-dir" "$SLOT" e2e echo ran 2>&1)"
+case "$msg" in *"자리 없이 돈다"*ran*) echo "ok   잠금 폴더를 못 만들면 알리고 자리 없이 돈다" ;; *) echo "FAIL 잠금 폴더 없음: $msg"; fail=1 ;; esac
+export XDG_CACHE_HOME="$T/cache"
+mkdir -p "$T/cache/dev-env/heavy/stuck/.mutex"
+msg="$(HEAVY_MUTEX_TRIES=5 "$SLOT" stuck echo ran 2>&1)"
+case "$msg" in *"잠금을"*"자리 없이 돈다"*ran*) echo "ok   잠금을 오래 못 받으면 알리고 자리 없이 돈다" ;; *) echo "FAIL 잠금 대기: $msg"; fail=1 ;; esac
 "$SLOT" e2e sh -c 'sleep 2' &
 sleep 0.5
 start=$(date +%s)
