@@ -7,7 +7,8 @@
 #   --no-graphify                 graphify 설치를 건너뛴다
 #
 # 파일 주인:
-#   틀    항상 덮어쓴다      CONTRIBUTING.md, docs/{code-rules,agents,skills,web,stack}.md, .editorconfig, 틀 스킬
+#   틀    항상 덮어쓴다      CONTRIBUTING.md, docs/{code-rules,agents,skills,web,stack}.md, .editorconfig, 틀 스킬,
+#                            .claude/hooks/의 틀 훅, scripts/heavy/slot.sh
 #   프로젝트  없을 때만 만든다  CLAUDE.md, README.md, docs/project.md, mise.toml, compose.yaml, .env.example
 #   합침   빠진 것만 더한다    .gitignore, .claude/settings.json, skills-lock.json, CLAUDE.md의 묶음 줄
 set -euo pipefail
@@ -55,7 +56,9 @@ target, self_mode, layers = sys.argv[1], sys.argv[2] == "1", sys.argv[3:]
 TEMPLATE_OWNED = {"CONTRIBUTING.md", "docs/code-rules.md", "docs/agents.md", "docs/skills.md",
                   "docs/web.md", "docs/stack.md", ".editorconfig",
                   ".claude/hooks/worktree-guard.sh",
-                  ".claude/hooks/agent-launch-guard.sh"}
+                  ".claude/hooks/agent-launch-guard.sh",
+                  ".claude/hooks/work-guard.py",
+                  "scripts/heavy/slot.sh"}
 MERGED = {".gitignore", ".claude/settings.json", "skills-lock.json"}
 SPECIAL = {"CLAUDE.preset.md", "CLAUDE.antislop.md"}
 report = {"새로 만듦": [], "틀로 바꿈": [], "합침": [], "그대로 둠(프로젝트 파일)": []}
@@ -175,8 +178,8 @@ if [[ "$GRAPHIFY" == 1 ]]; then
 fi
 
 if [[ "$SELF" == 1 ]]; then
-  rm -rf "$SRC/template" "$SRC/meta" "$SRC/setup.sh"
-  echo "[정리] template/, meta/, setup.sh를 지웠다. 틀을 업데이트할 때는 dev-env의 setup.sh --into 로 돌린다"
+  rm -rf "$SRC/template" "$SRC/meta" "$SRC/tests" "$SRC/setup.sh"
+  echo "[정리] template/, meta/, tests/, setup.sh를 지웠다. 틀을 업데이트할 때는 dev-env의 setup.sh --into 로 돌린다"
 fi
 
 missing=()
