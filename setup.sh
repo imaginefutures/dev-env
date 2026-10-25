@@ -165,8 +165,8 @@ if [[ "$GRAPHIFY" == 1 ]]; then
 fi
 
 if [[ "$SELF" == 1 ]]; then
-  rm -rf "$SRC/template" "$SRC/setup.sh"
-  echo "[정리] template/와 setup.sh를 지웠다. 틀을 업데이트할 때는 dev-env의 setup.sh --into 로 돌린다"
+  rm -rf "$SRC/template" "$SRC/meta" "$SRC/setup.sh"
+  echo "[정리] template/, meta/, setup.sh를 지웠다. 틀을 업데이트할 때는 dev-env의 setup.sh --into 로 돌린다"
 fi
 
 missing=()

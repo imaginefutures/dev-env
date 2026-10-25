@@ -60,6 +60,10 @@ cd <새이름>
 
 lint·포맷·타입·git 훅·CI 설정 파일은 넣지 않았다. 실제 코드에서 돌려 보지 않은 설정을 틀에 넣으면 프로젝트마다 깨진 채 복사된다. 첫 프로젝트가 코드 뼈대를 만들 때 `docs/stack.md` 2절대로 깔고 돌려 본 뒤, 그 설정을 이 틀에 올린다.
 
+## dev-env를 고칠 때
+
+규칙을 더하거나 스킬을 들이기 전에 [meta/GOVERNANCE.md](meta/GOVERNANCE.md)를 먼저 읽는다. 뿌리는 [meta/ROOT.md](meta/ROOT.md), 도입 판정 기록은 `meta/intake/`다. `meta/`는 새 프로젝트에 깔리지 않는다.
+
 ## 출처
 
 외부 스킬은 원래 저장소에서 복사했고 출처와 해시는 `skills-lock.json`에 있다. mattpocock/skills, addyosmani/agent-skills, miqdadbadjuber/anti-slop은 MIT다. multica-ai/andrej-karpathy-skills는 저장소에 LICENSE 파일이 없다(스킬 파일 머리말에는 MIT라고 적혀 있다). 이 저장소는 비공개로 둔다.
