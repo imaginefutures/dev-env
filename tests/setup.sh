@@ -38,4 +38,11 @@ before="$(cat "$P/package.json")"
 "$HERE/setup.sh" --into "$P" --no-graphify >/dev/null 2>&1
 check "다시 돌려도 package.json이 그대로" "$([ "$(cat "$P/package.json")" = "$before" ] && echo 0 || echo 1)"
 
+echo "# .gitignore 합치기"
+G="$T/gi"
+mkdir -p "$G"
+grep -v '^#' "$HERE/template/base/.gitignore" | grep . >"$G/.gitignore"  # 항목은 다 있고 설명 줄만 없는 프로젝트
+"$HERE/setup.sh" --into "$G" --base --no-graphify >/dev/null 2>&1
+check "더할 항목이 없으면 설명 줄도 안 붙임" "$(! grep -q '^#' "$G/.gitignore" && echo 0 || echo 1)"
+
 exit "$fail"

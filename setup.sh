@@ -190,7 +190,15 @@ for layer in layers:
         existed = os.path.exists(dst)
         if rel == ".gitignore":
             have = open(dst).read().splitlines() if existed else []
-            add = [l for l in open(src).read().splitlines() if l.strip() and l not in have]
+            add, note = [], []
+            for l in open(src).read().splitlines():
+                if l.startswith("#"):
+                    note.append(l)  # 설명 줄은 그 아래 항목이 하나라도 더해질 때만 붙인다
+                elif l.strip() and l not in have:
+                    add += [n for n in note if n not in have] + [l]
+                    note = []
+                elif not l.strip():
+                    note = []
             if add or not existed:
                 with open(dst, "a") as f:
                     if have and have[-1].strip():
