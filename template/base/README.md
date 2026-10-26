@@ -8,4 +8,4 @@
 
 - [CLAUDE.md](CLAUDE.md): Claude가 일을 시작할 때 읽는 입구
 - [docs/project.md](docs/project.md): 이 프로젝트의 값과 규칙
-- 일반 가이드(dev-env 틀): [CONTRIBUTING.md](CONTRIBUTING.md), [docs/code-rules.md](docs/code-rules.md), [docs/agents.md](docs/agents.md), [docs/skills.md](docs/skills.md)
+- 확인받고 하는 일: [CONTRIBUTING.md](CONTRIBUTING.md). 공통 개발 규칙은 스튜디오 팀 문서

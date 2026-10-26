@@ -37,44 +37,10 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/worktree-guard.sh bash"
           }
         ]
-      },
-      {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/agent-launch-guard.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|NotebookEdit|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/work-guard.py scratch"
-          }
-        ]
-      },
-      {
-        "matcher": "SubagentHandback",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/work-guard.py handback"
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/work-guard.py handback"
-          }
-        ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "studio@hack-collaboration-studio": true
   }
 }

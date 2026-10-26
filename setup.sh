@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# dev-env 틀을 프로젝트에 깐다. 다시 돌리면 틀 문서와 틀 스킬이 최신으로 바뀐다.
+# dev-env 틀(프로젝트 환경)을 프로젝트에 깐다. 다시 돌리면 틀 파일이 최신으로 바뀐다.
+# 공통 개발 규칙·스킬·팀 훅은 스튜디오 플러그인이 맡는다. 이 스크립트는 그 플러그인을 켜고, 예전 틀이 깔아 둔 사본을 걷어낸다.
 #
 #   ./setup.sh                    템플릿으로 만든 새 저장소 안에서: 이 폴더에 깔고 setup.sh·template/를 지운다
 #   ./setup.sh --into <폴더>      이미 있는 프로젝트에 깔거나 업데이트한다(이 폴더는 그대로 둔다)
@@ -7,10 +8,11 @@
 #   --no-graphify                 graphify 설치를 건너뛴다
 #
 # 파일 주인:
-#   틀    항상 덮어쓴다      CONTRIBUTING.md, docs/{code-rules,agents,skills,web,stack}.md, .editorconfig, 틀 스킬,
-#                            .claude/hooks/의 틀 훅, scripts/heavy/{slot,vitest}.sh, scripts/git/{ship,sync-root}.sh
-#   프로젝트  없을 때만 만든다  CLAUDE.md, README.md, docs/project.md, mise.toml, compose.yaml, .env.example
-#   합침   빠진 것만 더한다    .gitignore, .claude/settings.json, skills-lock.json, CLAUDE.md의 묶음 줄
+#   틀    항상 덮어쓴다      docs/stack.md, .editorconfig, .claude/hooks/worktree-guard.sh,
+#                            scripts/heavy/{slot,vitest}.sh, scripts/git/{ship,sync-root}.sh
+#   프로젝트  없을 때만 만든다  CLAUDE.md, README.md, CONTRIBUTING.md, docs/project.md, mise.toml, compose.yaml, .env.example
+#   합침   빠진 것만 더한다    .gitignore, .claude/settings.json, CLAUDE.md의 묶음 줄
+#   걷어냄  예전 틀의 사본    스튜디오로 옮긴 문서·스킬·훅(RETIRED), 그 훅 줄, CLAUDE.md의 옛 줄과 antislop 블록
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,25 +52,33 @@ for layer in "${LAYERS[@]}"; do
 done
 
 python3 - "$TARGET" "$SELF" "${LAYERS[@]}" <<'PY'
-import json, os, shutil, sys
+import json, os, re, shutil, sys
 
 target, self_mode, layers = sys.argv[1], sys.argv[2] == "1", sys.argv[3:]
-TEMPLATE_OWNED = {"CONTRIBUTING.md", "docs/code-rules.md", "docs/agents.md", "docs/skills.md",
-                  "docs/web.md", "docs/stack.md", ".editorconfig",
+TEMPLATE_OWNED = {"docs/stack.md", ".editorconfig",
                   ".claude/hooks/worktree-guard.sh",
-                  ".claude/hooks/agent-launch-guard.sh",
-                  ".claude/hooks/work-guard.py",
                   "scripts/heavy/slot.sh",
                   "scripts/heavy/vitest.sh",
                   "scripts/git/ship.sh",
                   "scripts/git/sync-root.sh"}
-MERGED = {".gitignore", ".claude/settings.json", "skills-lock.json"}
-SPECIAL = {"CLAUDE.preset.md", "CLAUDE.antislop.md"}
-report = {"새로 만듦": [], "틀로 바꿈": [], "합침": [], "그대로 둠(프로젝트 파일)": []}
+MERGED = {".gitignore", ".claude/settings.json"}
+SPECIAL = {"CLAUDE.preset.md"}
+# 스튜디오 플러그인으로 옮긴 것. 예전 틀이 프로젝트에 깔아 둔 사본을 걷어낸다(두 번 읽히지 않게).
+RETIRED_FILES = ["docs/code-rules.md", "docs/agents.md", "docs/skills.md", "docs/web.md",
+                 ".claude/hooks/work-guard.py", ".claude/hooks/agent-launch-guard.sh"]
+RETIRED_SKILLS = ["antislop", "antislop-code", "antislop-copywriting", "antislop-human", "antislop-layoutmobile",
+                  "antislop-ui", "codebase-design", "deprecation-and-migration", "domain-modeling", "fix",
+                  "grill-with-docs", "grilling", "karpathy-guidelines", "setup-ts-deep-modules", "tdd"]
+RETIRED_HOOKS = ("work-guard.py", "agent-launch-guard.sh")
+RETIRED_ROWS = ["| [CONTRIBUTING.md](CONTRIBUTING.md) | 틀 | 일하는 순서, 커밋 줄, 확인받는 일, 새 기능 점검표 |",
+                "| [docs/code-rules.md](docs/code-rules.md) | 틀 | 사실의 주인, 부르는 방향, 두 번 돌아도 안전하게, 권한 경계, 테스트 층 |",
+                "| [docs/agents.md](docs/agents.md) | 틀 | 서브에이전트로 나눠 일하기 |",
+                "| [docs/skills.md](docs/skills.md) | 틀 | 언제 어떤 스킬을 쓰나 |",
+                "| [docs/web.md](docs/web.md) | 틀 | 화면 샘플 먼저, 점검표 추가 질문, 타입·SQL DB·테스트 규칙, 화면 스킬 |"]
+report = {"새로 만듦": [], "틀로 바꿈": [], "합침": [], "걷어냄(스튜디오로 옮김)": [], "그대로 둠(프로젝트 파일)": []}
 
 def rel_files(layer):
     for root, dirs, files in os.walk(layer):
-        dirs[:] = [d for d in dirs if d != "skills"] if os.path.relpath(root, layer) == ".claude" else dirs
         for f in files:
             yield os.path.relpath(os.path.join(root, f), layer)
 
@@ -92,17 +102,61 @@ def merge_json_settings(dst, src):
             a.setdefault(k, v)
     return a
 
+def retire():
+    gone = report["걷어냄(스튜디오로 옮김)"]
+    for rel in RETIRED_FILES:
+        if os.path.isfile(os.path.join(target, rel)):
+            os.remove(os.path.join(target, rel))
+            gone.append(rel)
+    for name in RETIRED_SKILLS:
+        d = os.path.join(target, ".claude", "skills", name)
+        if os.path.islink(d) or os.path.isfile(d):
+            os.remove(d)
+            gone.append(f".claude/skills/{name}")
+        elif os.path.isdir(d):
+            shutil.rmtree(d)
+            gone.append(f".claude/skills/{name}/")
+    lock = os.path.join(target, "skills-lock.json")
+    if os.path.exists(lock):
+        a = json.load(open(lock))
+        left = {k: v for k, v in a.get("skills", {}).items() if k not in RETIRED_SKILLS}
+        if left != a.get("skills", {}):
+            if left:
+                a["skills"] = left
+                json.dump(a, open(lock, "w"), indent=2)
+                open(lock, "a").write("\n")
+            else:
+                os.remove(lock)
+            gone.append("skills-lock.json(옮긴 스킬 줄)")
+    st = os.path.join(target, ".claude", "settings.json")
+    if os.path.exists(st):
+        a = json.load(open(st))
+        hooks = a.get("hooks", {})
+        before = json.dumps(hooks)
+        for event in list(hooks):
+            hooks[event] = [e for e in hooks[event] if not any(n in x.get("command", "") for x in e.get("hooks", []) for n in RETIRED_HOOKS)]
+            if not hooks[event]:
+                del hooks[event]
+        if json.dumps(hooks) != before:
+            json.dump(a, open(st, "w"), ensure_ascii=False, indent=2)
+            open(st, "a").write("\n")
+            gone.append(".claude/settings.json(팀 훅 줄)")
+    claude = os.path.join(target, "CLAUDE.md")
+    if os.path.exists(claude):
+        text = open(claude).read()
+        new = re.sub(r"\n*<!-- antislop:start -->.*?<!-- antislop:end -->\n?", "\n", text, flags=re.S)
+        new = "\n".join(l for l in new.split("\n") if l not in RETIRED_ROWS)
+        if new != text:
+            open(claude, "w").write(new)
+            gone.append("CLAUDE.md(옛 문서 줄·antislop 블록)")
+    # 예전 틀의 CONTRIBUTING.md(공통 일하는 법 전체)는 틀이 늘 덮어쓰던 파일이라 프로젝트 몫이 없다. 새 양식으로 바꾼다.
+    contrib = os.path.join(target, "CONTRIBUTING.md")
+    if os.path.exists(contrib) and open(contrib).read().startswith("# 일하는 방법\n") and "## 5. 여러 세션이 같은 저장소를 쓴다" in open(contrib).read():
+        os.remove(contrib)
+        gone.append("CONTRIBUTING.md(예전 틀, 새 양식으로)")
+
+retire()
 for layer in layers:
-    # 틀 스킬: 폴더째 바꾼다.
-    sk = os.path.join(layer, ".claude", "skills")
-    if os.path.isdir(sk):
-        for name in sorted(os.listdir(sk)):
-            dst = os.path.join(target, ".claude", "skills", name)
-            existed = os.path.exists(dst)
-            if existed:
-                shutil.rmtree(dst)
-            shutil.copytree(os.path.join(sk, name), dst)
-            report["틀로 바꿈" if existed else "새로 만듦"].append(f".claude/skills/{name}/")
     for rel in sorted(rel_files(layer)):
         if rel in SPECIAL:
             continue
@@ -122,13 +176,6 @@ for layer in layers:
             json.dump(merge_json_settings(dst, src), open(dst, "w"), ensure_ascii=False, indent=2)
             open(dst, "a").write("\n")
             report["합침" if existed else "새로 만듦"].append(rel)
-        elif rel == "skills-lock.json":
-            a = json.load(open(dst)) if existed else {"version": 1, "skills": {}}
-            a.setdefault("skills", {}).update(json.load(open(src))["skills"])
-            a["skills"] = dict(sorted(a["skills"].items()))
-            json.dump(a, open(dst, "w"), indent=2)
-            open(dst, "a").write("\n")
-            report["합침" if existed else "새로 만듦"].append(rel)
         elif rel in TEMPLATE_OWNED:
             shutil.copy2(src, dst)
             report["틀로 바꿈" if existed else "새로 만듦"].append(rel)
@@ -138,7 +185,7 @@ for layer in layers:
             shutil.copy2(src, dst)
             report["새로 만듦"].append(rel)
 
-    # CLAUDE.md에 묶음 문서 줄과 antislop 블록을 더한다(없을 때만).
+    # CLAUDE.md에 묶음 문서 줄을 더한다(없을 때만).
     claude = os.path.join(target, "CLAUDE.md")
     if os.path.exists(claude):
         text = open(claude).read()
@@ -153,10 +200,6 @@ for layer in layers:
                 else:
                     text = text.rstrip("\n") + "\n\n## dev-env 묶음 문서\n\n| 문서 | 주인 | 볼 때 |\n|---|---|---|\n" + "\n".join(rows) + "\n"
                 changed = True
-        anti = os.path.join(layer, "CLAUDE.antislop.md")
-        if os.path.exists(anti) and "<!-- antislop:start -->" not in text:
-            text = text.rstrip("\n") + "\n" + open(anti).read()
-            changed = True
         if changed:
             open(claude, "w").write(text)
             report["합침"].append("CLAUDE.md(묶음 줄)")
@@ -181,8 +224,16 @@ if [[ "$GRAPHIFY" == 1 ]]; then
 fi
 
 if [[ "$SELF" == 1 ]]; then
-  rm -rf "$SRC/template" "$SRC/meta" "$SRC/tests" "$SRC/setup.sh"
-  echo "[정리] template/, meta/, tests/, setup.sh를 지웠다. 틀을 업데이트할 때는 dev-env의 setup.sh --into 로 돌린다"
+  rm -rf "$SRC/template" "$SRC/tests" "$SRC/setup.sh"
+  echo "[정리] template/, tests/, setup.sh를 지웠다. 틀을 업데이트할 때는 dev-env의 setup.sh --into 로 돌린다"
+fi
+
+# 공통 개발 환경(팀 문서·스킬·팀 훅)은 스튜디오 플러그인이다. settings.json이 켜고, 여기서 이 프로젝트에 설치해 둔다.
+if command -v claude >/dev/null 2>&1 && grep -q '"hack-collaboration-studio"' "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null; then
+  (cd "$TARGET" && claude plugin install studio@hack-collaboration-studio --scope project >/dev/null 2>&1) \
+    && echo "[스튜디오] 플러그인을 이 프로젝트에 켰다" || echo "[스튜디오] 플러그인 설치 실패: 이 폴더에서 claude plugin install studio@hack-collaboration-studio --scope project"
+else
+  echo "[스튜디오] 스튜디오 마켓을 모른다. 한 번만: claude plugin marketplace add <스튜디오 폴더> 뒤 setup.sh를 다시 돌린다"
 fi
 
 missing=()

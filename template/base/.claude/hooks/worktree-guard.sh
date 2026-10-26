@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 세션마다 자기 작업 폴더(git worktree)에서 일하게 한다(CONTRIBUTING 5절, meta/cases/2026-10-25-shared-checkout.md).
+# 세션마다 자기 작업 폴더(git worktree)에서 일하게 한다(스튜디오 work.md 5절, plugin/meta/cases/2026-10-25-shared-checkout.md).
 # 저장소 폴더(처음 clone한 곳)는 여러 세션이 같이 보는 자리라, 거기서 git으로 쓰는 일을 막는다.
 # 다른 작업 폴더에서는 git이 "가지 하나 = 작업 폴더 하나"를 지켜 주므로 이 훅이 더 할 일이 없다.
 #   session: 세션이 시작될 때(SessionStart) 저장소 폴더면 옮기라고 알린다(막지는 않는다: 읽기만 하는 세션도 있다).

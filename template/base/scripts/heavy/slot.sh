@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 무거운 명령(e2e, 전체 시험)을 컴퓨터 전체에서 정한 수만큼만 동시에 돌린다(docs/agents.md 원칙 4).
+# 무거운 명령(e2e, 전체 시험)을 컴퓨터 전체에서 정한 수만큼만 동시에 돌린다(스튜디오 팀 원칙 agents.md 원칙 4).
 # 세션·작업 폴더가 여럿이어도 CPU는 하나라, 자리를 컴퓨터 전체 잠금 폴더에서 받는다. 넘치면 시간 초과 거짓 실패가 난다.
 #
 #   scripts/heavy/slot.sh <종류> <명령...>      예: scripts/heavy/slot.sh e2e playwright test

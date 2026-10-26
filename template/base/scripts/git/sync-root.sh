@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 저장소 폴더(처음 clone한 곳)를 origin/main에 맞춘다. Claude Code는 훅·설정을 저장소 폴더에서 읽으므로,
-# 거기가 옛 가지에 머물면 새 훅이 하나도 돌지 않는다(meta/cases/2026-10-25-stale-root-checkout.md).
+# 거기가 옛 가지에 머물면 새 훅이 하나도 돌지 않는다(스튜디오 plugin/meta/cases/2026-10-25-stale-root-checkout.md).
 #   scripts/git/sync-root.sh          어느 작업 폴더에서든 돌린다. ship.sh가 올린 뒤 부른다.
 # 저장소 폴더가 main이 아니면 main으로 옮기고, 빨리감기만 한다. 커밋 안 한 변경이 있으면 손대지 않고 멈춘다.
 # 저장소 폴더에서 git으로 쓰는 일은 worktree-guard 훅이 막는다. 이 스크립트가 그 예외의 유일한 길이다.
