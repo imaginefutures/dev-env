@@ -1,0 +1,4 @@
+# 설치 스크립트를 돌리지 않을 패키지. @swc/core는 바이너리를 선택 의존으로 받고, lefthook 훅은 prepare가 깐다.
+allowBuilds:
+  "@swc/core": false
+  lefthook: false

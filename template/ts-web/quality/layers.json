@@ -1,0 +1,6 @@
+{
+  "_about": "모듈 층 지도의 원본(스튜디오 code-rules.md 8절). 아래층이 위층을 부르지 않는다. .dependency-cruiser.cjs가 읽는다. 새 모듈(src/packages/<모듈>)은 여기에 층을 정해 넣고, 위층은 \"1\", \"2\"처럼 키를 더한다.",
+  "layers": {
+    "0": ["contract", "db"]
+  }
+}

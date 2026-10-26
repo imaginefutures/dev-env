@@ -1,0 +1,10 @@
+# 생성되는 파일과 문서는 포맷하지 않는다(문서 표가 다시 흘러 diff가 커진다).
+pnpm-lock.yaml
+db/schema.sql
+src/packages/db/lib/schema.ts
+web/dist
+*.md
+temp
+# 틀(dev-env)과 스킬 파일은 이 저장소의 포맷 규칙을 따르지 않는다.
+.claude
+graphify-out

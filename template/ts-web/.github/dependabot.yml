@@ -1,0 +1,23 @@
+# 의존 갱신. 주마다 한 번, 종류마다 PR 하나로 묶는다. 새로 나온 버전은 며칠 기다렸다 올린다(급히 내린 버전을 피한다).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    groups:
+      dev:
+        dependency-type: development
+      prod:
+        dependency-type: production
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    groups:
+      actions:
+        patterns: ["*"]

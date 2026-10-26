@@ -10,8 +10,11 @@
 # 파일 주인:
 #   틀    항상 덮어쓴다      docs/stack.md, .editorconfig, .claude/hooks/worktree-guard.sh,
 #                            scripts/heavy/{slot,vitest}.sh, scripts/git/{ship,sync-root}.sh
-#   프로젝트  없을 때만 만든다  CLAUDE.md, README.md, CONTRIBUTING.md, docs/project.md, mise.toml, compose.yaml, .env.example
-#   합침   빠진 것만 더한다    .gitignore, .claude/settings.json, CLAUDE.md의 묶음 줄
+#   프로젝트  없을 때만 만든다  CLAUDE.md, README.md, CONTRIBUTING.md, docs/project.md, mise.toml, compose.yaml, .env.example,
+#                            검사 설정(.oxlintrc.json, .dependency-cruiser.cjs, quality/, tsconfig.json, knip.json, vitest.config.ts,
+#                            lefthook.yml, .github/, .prettier*, pnpm-workspace.yaml)
+#   뼈대   src/·web/이 둘 다 없을 때만  src/, web/ 아래 파일(빈 프로젝트에서 검사가 돌게 하는 최소 코드)
+#   합침   빠진 것만 더한다    .gitignore, .claude/settings.json, CLAUDE.md의 묶음 줄, package.json의 scripts·devDependencies
 #   걷어냄  예전 틀의 사본    스튜디오로 옮긴 문서·스킬·훅(RETIRED), 그 훅 줄, CLAUDE.md의 옛 줄과 antislop 블록
 set -euo pipefail
 
@@ -25,7 +28,7 @@ while [[ $# -gt 0 ]]; do
     --into) TARGET="${2:?--into 뒤에 폴더를 준다}"; shift 2 ;;
     --base) PRESET=""; shift ;;
     --no-graphify) GRAPHIFY=0; shift ;;
-    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     *) echo "모르는 옵션: $1" >&2; exit 2 ;;
   esac
 done
@@ -61,7 +64,10 @@ TEMPLATE_OWNED = {"docs/stack.md", ".editorconfig",
                   "scripts/heavy/vitest.sh",
                   "scripts/git/ship.sh",
                   "scripts/git/sync-root.sh"}
-MERGED = {".gitignore", ".claude/settings.json"}
+MERGED = {".gitignore", ".claude/settings.json", "package.json"}
+# 뼈대 코드. 이미 코드가 있는 프로젝트에는 깔지 않는다(그 프로젝트의 구조와 섞이지 않게).
+SKELETON = ("src/", "web/")
+has_code = any(os.path.exists(os.path.join(target, d)) for d in ("src", "web"))
 SPECIAL = {"CLAUDE.preset.md"}
 # 스튜디오 플러그인으로 옮긴 것. 예전 틀이 프로젝트에 깔아 둔 사본을 걷어낸다(두 번 읽히지 않게).
 RETIRED_FILES = ["docs/code-rules.md", "docs/agents.md", "docs/skills.md", "docs/web.md",
@@ -75,7 +81,8 @@ RETIRED_ROWS = ["| [CONTRIBUTING.md](CONTRIBUTING.md) | 틀 | 일하는 순서, 
                 "| [docs/agents.md](docs/agents.md) | 틀 | 서브에이전트로 나눠 일하기 |",
                 "| [docs/skills.md](docs/skills.md) | 틀 | 언제 어떤 스킬을 쓰나 |",
                 "| [docs/web.md](docs/web.md) | 틀 | 화면 샘플 먼저, 점검표 추가 질문, 타입·SQL DB·테스트 규칙, 화면 스킬 |"]
-report = {"새로 만듦": [], "틀로 바꿈": [], "합침": [], "걷어냄(스튜디오로 옮김)": [], "그대로 둠(프로젝트 파일)": []}
+report = {"새로 만듦": [], "틀로 바꿈": [], "합침": [], "걷어냄(스튜디오로 옮김)": [], "그대로 둠(프로젝트 파일)": [],
+          "건너뜀(코드가 이미 있어 뼈대를 깔지 않음)": []}
 
 def rel_files(layer):
     for root, dirs, files in os.walk(layer):
@@ -101,6 +108,21 @@ def merge_json_settings(dst, src):
         else:
             a.setdefault(k, v)
     return a
+
+def merge_package_json(dst, src):
+    # 빠진 scripts·devDependencies만 더한다. 있는 값(버전, 고친 명령)은 그대로 둔다. 더한 이름을 돌려준다.
+    a, b = json.load(open(dst)), json.load(open(src))
+    added = []
+    for key in ("scripts", "devDependencies"):
+        cur = a.setdefault(key, {})
+        for name, value in b.get(key, {}).items():
+            if name not in cur:
+                cur[name] = value
+                added.append(f"{key}.{name}")
+    if added:
+        json.dump(a, open(dst, "w"), ensure_ascii=False, indent=2)
+        open(dst, "a").write("\n")
+    return added
 
 def retire():
     gone = report["걷어냄(스튜디오로 옮김)"]
@@ -161,6 +183,9 @@ for layer in layers:
         if rel in SPECIAL:
             continue
         src, dst = os.path.join(layer, rel), os.path.join(target, rel)
+        if rel.startswith(SKELETON) and has_code:
+            report["건너뜀(코드가 이미 있어 뼈대를 깔지 않음)"].append(rel)
+            continue
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         existed = os.path.exists(dst)
         if rel == ".gitignore":
@@ -172,6 +197,12 @@ for layer in layers:
                         f.write("\n")
                     f.write("\n".join(add if existed else open(src).read().splitlines()) + "\n")
             report["합침" if existed else "새로 만듦"].append(rel)
+        elif rel == "package.json" and existed:
+            added = merge_package_json(dst, src)
+            if added:
+                report["합침"].append(f"package.json(더함: {', '.join(added)})")
+            else:
+                report["그대로 둠(프로젝트 파일)"].append(rel)
         elif rel == ".claude/settings.json":
             json.dump(merge_json_settings(dst, src), open(dst, "w"), ensure_ascii=False, indent=2)
             open(dst, "a").write("\n")
@@ -248,5 +279,6 @@ cat <<EOF
 
 다음 할 일:
   1. CLAUDE.md, README.md, docs/project.md의 <...>를 채운다
-$( [[ -n "$PRESET" ]] && echo "  2. mise install && cp .env.example .env && docker compose up -d" )
+$( [[ -n "$PRESET" ]] && echo "  2. mise install && pnpm install && cp .env.example .env && docker compose up -d
+  3. pnpm check (타입·lint·경계·포맷·안 쓰는 코드·시험)" )
 EOF

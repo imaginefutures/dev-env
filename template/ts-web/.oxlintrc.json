@@ -1,0 +1,43 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "react"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "no-console": "error",
+    "react/react-in-jsx-scope": "off",
+    // 크기·복잡도 한도. 빈 줄·주석은 세지 않는다. 숫자는 이 프로젝트에 맞게 여기서 고친다.
+    "max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }],
+    "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }],
+    "complexity": ["error", { "max": 15 }],
+    "max-depth": ["error", { "max": 4 }]
+  },
+  "ignorePatterns": ["src/packages/db/lib/schema.ts", "web/dist/**"],
+  "overrides": [
+    {
+      "files": ["web/**"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "화면은 src/app/client.ts의 API 클라이언트만 쓴다(스튜디오 web.md 3절)."
+          }
+        ]
+      }
+    },
+    {
+      // 시험은 describe 하나가 길게 이어진다. 길이 한도만 뺀다.
+      "files": ["**/tests/**", "**/*.test.ts", "**/*.test.tsx"],
+      "rules": { "max-lines": "off", "max-lines-per-function": "off" }
+    },
+    {
+      "files": ["scripts/**"],
+      "rules": { "no-console": "off" }
+    }
+  ]
+}

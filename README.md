@@ -49,24 +49,27 @@ cd <새이름>
 | 겹 | 폴더 | 들어 있는 것 |
 |---|---|---|
 | 기본(모든 프로젝트) | `template/base/` | `CLAUDE.md`·`README.md` 뼈대, `docs/project.md`(빈 양식), `CONTRIBUTING.md`(확인받고 하는 일), `.claude/settings.json`(`.env` 읽기 금지, push는 물어보기, 스튜디오 플러그인 켜기), 저장소 폴더 지키기 훅, `scripts/git/ship.sh`·`sync-root.sh`, `scripts/heavy/slot.sh`, `.gitignore`, `.editorconfig` |
-| TS 웹 서비스 | `template/ts-web/` | `docs/stack.md`(도구 선택과 속도 기준), `mise.toml`(Node 26, pnpm 12), `compose.yaml`(Postgres 18), `.env.example`, `scripts/heavy/vitest.sh` |
+| TS 웹 서비스 | `template/ts-web/` | `docs/stack.md`(도구 선택과 속도 기준), `mise.toml`(Node 26, pnpm 12, gitleaks), `compose.yaml`(Postgres 18), `.env.example`, `scripts/heavy/vitest.sh`, 검사 설정(`package.json`, `tsconfig.json`, `.oxlintrc.json`(크기·복잡도 한도 포함), `.dependency-cruiser.cjs`·`quality/layers.json`·`quality/tests/boundaries.test.ts`, `knip.json`, `vitest.config.ts`, `lefthook.yml`, `.github/workflows/ci.yml`, `.github/dependabot.yml`, `.prettierrc.json`·`.prettierignore`, `pnpm-workspace.yaml`), 최소 뼈대(`src/packages/contract/`, `src/app/client.ts`, `web/src/main.ts`) |
 
 ## 파일 주인
 
 | 주인 | 파일 | setup.sh가 하는 일 |
 |---|---|---|
 | 틀 | `docs/stack.md`, `.editorconfig`, `.claude/hooks/worktree-guard.sh`, `scripts/heavy/slot.sh`·`vitest.sh`(TS 웹), `scripts/git/ship.sh`·`sync-root.sh` | 항상 덮어쓴다 |
-| 프로젝트 | `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, `docs/project.md`, `mise.toml`, `compose.yaml`, `.env.example` | 없을 때만 만든다 |
-| 합침 | `.gitignore`, `.claude/settings.json`, `CLAUDE.md`의 묶음 문서 줄 | 빠진 것만 더한다 |
+| 프로젝트 | `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, `docs/project.md`, `mise.toml`, `compose.yaml`, `.env.example`, 검사 설정(위 표의 `package.json` 밖 전부) | 없을 때만 만든다. 프로젝트가 숫자·규칙을 고쳐 쓴다 |
+| 뼈대 | `src/`, `web/` 아래 파일 | 그 프로젝트에 `src/`·`web/`이 둘 다 없을 때만 만든다 |
+| 합침 | `.gitignore`, `.claude/settings.json`, `CLAUDE.md`의 묶음 문서 줄, `package.json`의 `scripts`·`devDependencies` | 빠진 것만 더한다(있는 명령·버전은 그대로, 더한 이름을 알린다) |
 
 틀 파일을 고칠 일이면 프로젝트가 아니라 이 저장소에서 고치고, 프로젝트마다 `setup.sh --into`를 다시 돌린다. 프로젝트에만 맞는 값은 그 프로젝트의 `docs/project.md`에 쓴다. 공통 개발 규칙은 스튜디오 저장소의 `plugin/`에서 고친다.
 
 ## 아직 넣지 않은 것
 
-lint·포맷·타입·git 훅·CI 설정 파일은 넣지 않았다. 실제 코드에서 돌려 보지 않은 설정을 틀에 넣으면 프로젝트마다 깨진 채 복사된다. 첫 프로젝트가 코드 뼈대를 만들 때 `docs/stack.md` 2절대로 깔고 돌려 본 뒤, 그 설정을 이 틀에 올린다.
+검사 설정(lint·포맷·타입·경계·안 쓰는 코드·git 훅·CI)은 marketing-with-ai에서 돌려 본 것을 가져왔다. 마이그레이션(dbmate), DB 접근(Kysely), 화면 시험(Playwright), 로그(pino), 화면 틀(React·Vite)은 아직 넣지 않았다. 프로젝트마다 쓰는 방식이 갈려 실제로 돌려 본 설정이 하나뿐이다. 둘째 프로젝트에서 같은 모양이 나오면 이 틀에 올린다(`docs/stack.md` 2절 "나중에").
+
+이미 있는 프로젝트에는 검사 설정을 덮지 않으니, 틀의 새 규칙(예: 크기·복잡도 한도)은 그 프로젝트의 설정에 손으로 옮긴다.
 
 ## dev-env를 고칠 때
 
-규칙을 더하거나 바꾸기 전에 스튜디오 `plugin/meta/GOVERNANCE.md`를 먼저 읽는다(규칙 관리 기록은 스튜디오 한 곳에 둔다). 틀 훅(`template/base/.claude/hooks/`)이나 `template/*/scripts/`를 고치면 `tests/hooks.sh`를 돌린다.
+규칙을 더하거나 바꾸기 전에 스튜디오 `plugin/meta/GOVERNANCE.md`를 먼저 읽는다(규칙 관리 기록은 스튜디오 한 곳에 둔다). 틀 훅(`template/base/.claude/hooks/`)이나 `template/*/scripts/`를 고치면 `tests/hooks.sh`를, `setup.sh`를 고치면 `tests/setup.sh`를 돌린다. `template/ts-web/`의 검사 설정을 고치면 빈 폴더에 `setup.sh --into`로 깔고 `pnpm install && pnpm check`를 돌린다.
 
 이 저장소는 비공개로 둔다.

@@ -1,0 +1,23 @@
+# 커밋 전에는 바뀐 파일만 1~2초 안에, push 전에는 타입·경계·빠른 시험(DB 없는 unit 묶음)만 30초 안에(docs/stack.md 속도 기준).
+# mise가 켜지지 않은 셸(편집기의 git 버튼 등)에서도 돌게 도구를 mise exec로 부른다.
+pre-commit:
+  parallel: true
+  commands:
+    secrets:
+      run: mise exec -- gitleaks git --staged --no-banner --redact
+    format:
+      glob: "*.{ts,tsx,json,yml,yaml,cjs}"
+      run: mise exec -- pnpm exec prettier --check {staged_files}
+    lint:
+      glob: "*.{ts,tsx}"
+      # 바뀐 TS 파일이 모두 lint 제외 대상(생성된 schema.ts 등)이면 고를 파일이 없어도 실패하지 않는다.
+      run: mise exec -- pnpm exec oxlint --type-aware --no-error-on-unmatched-pattern {staged_files}
+pre-push:
+  parallel: true
+  commands:
+    typecheck:
+      run: mise exec -- pnpm typecheck
+    boundaries:
+      run: mise exec -- pnpm lint:boundaries
+    test-fast:
+      run: mise exec -- pnpm test:fast
